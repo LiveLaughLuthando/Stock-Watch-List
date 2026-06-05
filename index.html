@@ -399,6 +399,7 @@
 <div id="root"></div>
 
 <script type="text/babel">
+
 const { useState, useEffect, useRef } = React;
 
 // ─── LOGOS (base64 embedded)
@@ -487,30 +488,56 @@ function Nav({ page, setPage, isLoggedIn, onLogout }) {
     </nav>
   );
 }
-
+const API_URL = "http://localhost:5000/api";
 //LOGIN PAGE 
 function LoginPage({ setPage, onLogin }) {
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    setError('');
-    if (!form.username || !form.password) { setError('Please fill in all fields.'); return; }
-    setLoading(true);
-    // Temporary login simulation for testing, When the backend is ready we replace this with a real API call
-   // Valid test credentials: username = "demo", password = "password"
-    setTimeout(() => {
-      if (form.username === 'demo' && form.password === 'password') {
-        const fakeToken = 'eyJhbGciOiJIUzI1NiJ9.demo.token';
-        saveAuth(fakeToken, { username: form.username, role: 'analyst' });
-        onLogin();
-      } else {
-        setError('Invalid username or password.');
-      }
-      setLoading(false);
-    }, 800);
-  };
+ const handleSubmit = async () => {
+  setError('');
+
+  if (!form.username || !form.password) {
+    setError('Please fill in all fields.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: form.username,
+        password: form.password
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Login failed');
+    }
+
+    localStorage.setItem('token', data.token);
+
+    saveAuth(data.token, {
+      username: data.email,
+      role: data.role
+    });
+
+    onLogin();
+
+  } catch (err) {
+    setError(err.message);
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="page">
@@ -555,22 +582,50 @@ function RegisterPage({ setPage }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = () => {
-    setError('');
-    if (!form.username || !form.email || !form.password || !form.confirm) {
-      setError('All fields are required.'); return;
+  const handleSubmit = async () => {
+  setError('');
+
+  if (!form.username || !form.email || !form.password || !form.confirm) {
+    setError('All fields are required.');
+    return;
+  }
+
+  if (form.password !== form.confirm) {
+    setError('Passwords do not match.');
+    return;
+  }
+
+  if (form.password.length < 6) {
+    setError('Password must be at least 6 characters.');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: form.email,
+        password: form.password
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Registration failed');
     }
-    if (form.password !== form.confirm) {
-      setError('Passwords do not match.'); return;
-    }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.'); return;
-    }
+
     setSuccess(true);
-    // TEMPORARY!! auto-redirects to login after registration
-   // When the backend is ready, We will replace this with a real API call to save the user
+
     setTimeout(() => setPage('login'), 1800);
-  };
+
+  } catch (err) {
+    setError(err.message);
+  }
+};
 
   if (success) return (
     <div className="page">
