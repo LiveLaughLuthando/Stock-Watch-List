@@ -7,21 +7,26 @@ const Watchlist = require('../models/Watchlist');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, password, role } = req.body;
+  const { name, email, password, role } = req.body;  // added name
+
   const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(400);
-    throw new Error('User already exists');
+    throw new Error('An account with that email already exists');
   }
+
   const user = await User.create({
+    name,                                              // added name
     email,
     password,
     role: role === 'analyst' ? 'analyst' : 'viewer'
   });
-  // Create empty watchlist for the user
+
   await Watchlist.create({ userId: user._id, stocks: [] });
+
   res.status(201).json({
     _id: user._id,
+    name: user.name,                                   // added name
     email: user.email,
     role: user.role,
     token: generateToken(user._id, user.role, user.email)
